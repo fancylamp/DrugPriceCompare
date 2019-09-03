@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="PriceCalc:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/PriceCalc_jar</output-path>
+    <root id="archive" name="PriceCalc.jar">
+      <element id="module-output" name="PriceCalc" />
+      <element id="extracted-dir" path="$USER_HOME$/Documents/gson-2.8.5.jar" path-in-jar="/" />
+      <element id="file-copy" path="$USER_HOME$/Documents/gson-2.8.5.jar" />
+    </root>
+  </artifact>
+</component>
