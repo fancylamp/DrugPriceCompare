@@ -1,13 +1,20 @@
 package ui;
 
-import com.google.gson.Gson;
+import com.google.gson.*;
 import model.Drug;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.FileWriter;
+import java.io.*;
+import java.net.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 
 public class EnterDrugFrame extends JDialog implements ActionListener {
@@ -88,9 +95,40 @@ public class EnterDrugFrame extends JDialog implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         Drug newDrug = new Drug();
-        newDrug.setName(drugName.getText());
-        newDrug.setPrice(Double.parseDouble(drugPrice.getText()) / Double.parseDouble(drugQty.getText()));
+        Double basePrice = 0.0;
+        Double USPrice = 0.0;
+
+        String enterName = drugName.getText();
+
+        newDrug.setName(enterName);
+        basePrice = Double.parseDouble(String.format("%.2f",Double.parseDouble(drugPrice.getText()) / Double.parseDouble(drugQty.getText())));
+        newDrug.setPrice(basePrice);
+
+        String replaced = enterName.replaceAll(" ","+");
+        System.out.println(replaced);
+        String endpoint = "https://data.medicaid.gov/resource/rt4v-78r4.json";
+        endpoint = endpoint +  "?ndc_description=" + replaced;
+        System.out.println(endpoint);
+        try {
+            URL url = new URL(endpoint);
+            URLConnection request = url.openConnection();
+            request.connect();
+
+            JsonParser jp = new JsonParser();
+            JsonElement root = jp.parse(new InputStreamReader((InputStream) request.getContent()));
+
+            JsonArray rootArr = root.getAsJsonArray();
+            JsonObject rootObj = rootArr.get(0).getAsJsonObject();
+            USPrice = rootObj.get("nadac_per_unit").getAsDouble();
+        } catch (IOException exc){
+            System.out.println("IOException");
+        }
+
+        newDrug.setUSPrice(Double.parseDouble(String.format("%.2f",USPrice)));
+        newDrug.setOurPrice(Double.parseDouble(String.format("%.2f",0.75*((USPrice - basePrice)*0.3+basePrice))));
+
         MasterList.add(newDrug);
+
         Gson gson = new Gson();
         String serializedList = gson.toJson(MasterList);
         System.out.println(serializedList);
@@ -100,6 +138,20 @@ public class EnterDrugFrame extends JDialog implements ActionListener {
             fw.close();
         } catch (Exception exc){
             System.out.println("File not found!");
+        }
+
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            String content = Files.readString(Paths.get("DrugList.txt"));
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.jsonbin.io/b/5d7dbfb1de91160d2872834c"))
+                    .timeout(Duration.ofMinutes(1))
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(content)).build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            System.out.println(response.statusCode());
+        }catch (Exception exc){
+            exc.printStackTrace();
         }
         dispose();
 
